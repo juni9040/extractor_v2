@@ -1,5 +1,6 @@
 #conda 환경 설치
 conda env create -n extractor_v2 --file env.yaml
+
 conda active extractor_v2
 
 python run_extractor.py -t 1 --user LBJ --project 1103 -c 10000
