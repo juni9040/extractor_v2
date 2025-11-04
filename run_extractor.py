@@ -10,7 +10,8 @@ from tqdm import tqdm
 import re
 from optparse import OptionParser
 import pickle
-
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 FORWARD = True
 
 def Init_Folder(path, user, project):
@@ -47,7 +48,7 @@ def ImportBarcode(file, match_type):
     
 
 def CountBarcode(file, barcode):
-    seqs = skbio.io.read(file, format = 'fastq', verify = True, variant = 'illumina1.8')
+    seqs = SeqIO.parse(file, format = 'fastq')
     n=0
     count_edit = 0
     count_unedit = 0
@@ -75,6 +76,7 @@ def CountBarcode(file, barcode):
                         else:
                             barcode[fwd][rev]['others'] = barcode[fwd][rev]['others']+1
                             count_others+=1
+                            others.append(seq)
             #if re.search(barcode[i][0], str(seq)) != None:
             #if barcode[i][0] in seq:
             #    result[i][0]+=1
@@ -86,7 +88,10 @@ def CountBarcode(file, barcode):
                 #    result[i][3]+=1
             #    break
     #np.savetxt(file+'_result.csv', result, delimiter=',')
-    print(n, count_edit, count_unedit, count_others)
+    #print(others)
+    with open(file+"others.fastq",'w') as f:
+        SeqIO.write(others, f, format ='fastq')
+    
     return barcode
 
 
@@ -114,6 +119,7 @@ def SplitedFileLoad(barcode, path, user, project):
     for i in range(len(file_list)):
         file_list[i] = path + "/Input/Fastq/split/"+file_list[i]
     result = {}
+    other_seq = []
     print(file_num)
     with ProcessPoolExecutor(max_workers=32) as executor:
         future_to_output = {executor.submit(CountBarcode, file_list[i], barcode): i for i in range(len(file_list))}
@@ -123,7 +129,6 @@ def SplitedFileLoad(barcode, path, user, project):
             try:
                 if len(result)==0:
                     result = future.result()
-
                 else:
                     result = dict_sum(result, future.result())
 
@@ -133,6 +138,7 @@ def SplitedFileLoad(barcode, path, user, project):
             else:
                 with open(path+"/Output/temp.pkl", 'wb') as f: pickle.dump(result,f)
     output = dict_output(result)
+    print(other_seq)
     return pd.DataFrame(output, columns=['5-barcode', '3-barcode', 'edit', 'unedit', 'edit_count', 'unedit_count', 'others_count'])
     
 def main():
