@@ -32,20 +32,20 @@ def FileSplit(path, input, size): #split NGS fastq file as n sequence for each f
         )
 
 def ImportBarcode(file, matched):
-    f_barcode = pd.read_csv(file, names = ['Barcode_F', 'Barcode_R', 'Unedit', 'Edit'], skiprows=[0])
+    f_barcode = pd.read_csv(file, names = ['Barcode_F', 'Barcode_R', 'Edit', 'Unedit'], skiprows=[0])
     fwd_dict = dict()
     for i in range(len(f_barcode['Barcode_F'].dropna())):
         fwd = f_barcode['Barcode_F'].dropna()[i]
         rev_dict = dict()
         if len(f_barcode['Barcode_R'].dropna())==0:
-            rev_dict['']={'edit':[f_barcode['Unedit'][0],0], 'unedit':[f_barcode['Edit'][0],0],'others':0}
+            rev_dict['']={'edit':[f_barcode['Edit'][i],0], 'unedit':[f_barcode['Unedit'][i],0],'others':0}
         else:
             if matched:
                 rev = f_barcode['Barcode_R'].dropna()[i]
-                rev_dict[rev]={'edit':[f_barcode['Unedit'][0],0], 'unedit':[f_barcode['Edit'][0],0],'others':0}
+                rev_dict[rev]={'edit':[f_barcode['Edit'][i],0], 'unedit':[f_barcode['Unedit'][i],0],'others':0}
             else:
                 for rev in f_barcode['Barcode_R'].dropna():
-                    edit_dict = {'edit':[f_barcode['Unedit'][0],0], 'unedit':[f_barcode['Edit'][0],0],'others':0}
+                    edit_dict = {'edit':[f_barcode['Edit'][0],0], 'unedit':[f_barcode['Unedit'][0],0],'others':0}
                     rev_dict[rev]=edit_dict
         fwd_dict[fwd]=rev_dict
         
