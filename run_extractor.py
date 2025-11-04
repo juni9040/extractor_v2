@@ -31,20 +31,25 @@ def FileSplit(path, input, size): #split NGS fastq file as n sequence for each f
             )
         )
 
-def ImportBarcode(file, match_type):
+def ImportBarcode(file, matched):
     f_barcode = pd.read_csv(file, names = ['Barcode_F', 'Barcode_R', 'Unedit', 'Edit'], skiprows=[0])
-    if match_type:
-        return f_barcode
-    else:
-        fwd_dict = dict()
-        for fwd in f_barcode['Barcode_F'].dropna():
-            rev_dict = dict()
-            for rev in f_barcode['Barcode_R'].dropna():
-                edit_dict = {'edit':[f_barcode['Unedit'][0],0], 'unedit':[f_barcode['Edit'][0],0],'others':0}
-                rev_dict[rev]=edit_dict
-            fwd_dict[fwd]=rev_dict
+    fwd_dict = dict()
+    for i in range(len(f_barcode['Barcode_F'].dropna())):
+        fwd = f_barcode['Barcode_F'].dropna()[i]
+        rev_dict = dict()
+        if len(f_barcode['Barcode_R'].dropna())==0:
+            rev_dict['']={'edit':[f_barcode['Unedit'][0],0], 'unedit':[f_barcode['Edit'][0],0],'others':0}
+        else:
+            if matched:
+                rev = f_barcode['Barcode_R'].dropna()[i]
+                rev_dict[rev]={'edit':[f_barcode['Unedit'][0],0], 'unedit':[f_barcode['Edit'][0],0],'others':0}
+            else:
+                for rev in f_barcode['Barcode_R'].dropna():
+                    edit_dict = {'edit':[f_barcode['Unedit'][0],0], 'unedit':[f_barcode['Edit'][0],0],'others':0}
+                    rev_dict[rev]=edit_dict
+        fwd_dict[fwd]=rev_dict
         
-        return fwd_dict
+    return fwd_dict
     
 
 def CountBarcode(file, barcode):
@@ -113,7 +118,7 @@ def dict_output(result):
             output.append([fwd,rev,result[fwd][rev]['edit'][0],result[fwd][rev]['unedit'][0],result[fwd][rev]['edit'][1],result[fwd][rev]['unedit'][1],result[fwd][rev]['others']])
     return output
 
-def SplitedFileLoad(barcode, path, user, project):
+def SplitedFileLoad(barcode, path, thread):
     file_list = os.listdir(path + "/Input/Fastq/split")
     file_num = len(file_list)
     for i in range(len(file_list)):
@@ -121,7 +126,7 @@ def SplitedFileLoad(barcode, path, user, project):
     result = {}
     other_seq = []
     print(file_num)
-    with ProcessPoolExecutor(max_workers=32) as executor:
+    with ProcessPoolExecutor(max_workers=thread) as executor:
         future_to_output = {executor.submit(CountBarcode, file_list[i], barcode): i for i in range(len(file_list))}
 
         for future in as_completed(future_to_output):
@@ -172,6 +177,9 @@ def main():
     parser.add_option(
         "--project", dest="project_name", help="The project name with no space", default="test"
     )
+    parser.add_option(
+        "--matched", dest="matched", help="The project name with no space", default=True
+    )
     options, args = parser.parse_args()
 
     user = options.user_name
@@ -184,11 +192,12 @@ def main():
         print(os.listdir(path + "/Input/Fastq/"))
         input_file = [file for file in os.listdir(path + "/Input/Fastq/") if file.endswith('fastq')][0]
         print(input_file)
-        barcode = ImportBarcode(path + "/Input/" + project + "_barcode.csv", False)
+        if options.matched=="False" : options.matched=False
+        barcode = ImportBarcode(path + "/Input/" + project + "_barcode.csv", options.matched)
         print(len(barcode))
         #output_init = np.zeros((barcode.shape[0], barcode.shape[1]+1))
         FileSplit(path, input_file, options.chunk_number)
-        output = SplitedFileLoad(barcode, path, user, project)
+        output = SplitedFileLoad(barcode, path, options.multicore)
         output.to_csv(path+"/Output/"+project+".csv")
         #np.savetxt(path + "/" + user + "/" + project + "/Output/PJS_AC_5.csv", output, delimiter=',') #
         
